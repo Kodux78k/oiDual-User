@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pwa-dual//fusi-v1';
+const CACHE_NAME = 'pwa-dual//uzr-v0';
 const ASSETS = [
     './',
     'index.html',
