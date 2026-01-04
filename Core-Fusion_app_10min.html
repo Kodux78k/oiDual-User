@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>DUAL // FUSION OS — Monólito</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#030406">
+
+  <!-- Fonts & Core Libs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-deep: #030406;
+      --glass-surface: rgba(18, 18, 22, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --neon-cyan: #00f2ff;
+      --neon-purple: #bd00ff;
+      --font-ui: 'Montserrat', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-out: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body {
+      margin: 0; padding: 0;
+      min-height: 100vh;
+      background-color: var(--bg-deep);
+      color: #fff;
+      font-family: var(--font-ui);
+      overflow-x: hidden;
+      background-image: radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.03) 0%, transparent 80%);
+    }
+
+    /* Ambient Elements */
+    .ambient-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.12; animation: float 20s infinite alternate ease-in-out; }
+    .blob-1 { width: 500px; height: 500px; background: var(--neon-cyan); top: -100px; left: -100px; }
+    .blob-2 { width: 400px; height: 400px; background: var(--neon-purple); bottom: -100px; right: -100px; animation-delay: -5s; }
+    @keyframes float { 0% { transform: translate(0,0); } 100% { transform: translate(60px,40px); } }
+
+    /* Header Vivo Styles */
+    .app-header {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 72px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+      background: linear-gradient(180deg, rgba(6,6,8,0.7), rgba(6,6,8,0.55));
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      z-index: 200;
+      transition: height 240ms ease, padding 200ms ease, background 260ms ease;
+      box-sizing: border-box;
+    }
+
+    .app-header.shrink { height: 56px; padding: 8px 14px; }
+
+    .header-left { display:flex; align-items:center; gap:12px; min-width:0; }
+    .header-avatar {
+      width:48px; height:48px; border-radius:12px; overflow:hidden; flex-shrink:0;
+      background: linear-gradient(135deg,#00f2ff,#bd00ff);
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    }
+    .header-identity { display:flex; flex-direction:column; min-width:0; }
+    .header-username { font-weight:700; font-size:15px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width:220px; }
+    .header-role { font-size:12px; opacity:0.7; margin-top:2px; }
+
+    .header-center { display:flex; align-items:center; gap:8px; justify-content:center; flex:1; }
+    .header-status {
+      font-family: var(--font-code, monospace);
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,0.03);
+      color: rgba(255,255,255,0.9);
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .header-right { display:flex; align-items:center; gap:8px; }
+    .header-btn {
+      height:38px; min-width:38px; padding:6px;
+      border-radius:10px; background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.04);
+      display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .header-btn:hover { transform: translateY(-1px); }
+    .header-toggle { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:rgba(255,255,255,0.8); cursor:pointer; }
+    .header-toggle input { width:14px; height:14px; }
+
+    .app-header[data-active="true"] .header-status { background: linear-gradient(90deg,#00f2ff,#bd00ff); color:#011; border-color: rgba(255,255,255,0.06); }
+    .app-header[data-active="false"] .header-status { background: rgba(255,255,255,0.02); color: rgba(255,255,255,0.85); }
+
+    .app-header[data-theme="vibe"] { background: linear-gradient(180deg, rgba(43,16,85,0.9), rgba(0,0,0,0.6)); }
+
+    /* Fusion Card Core */
+    .fusion-container {
+      position: fixed; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; pointer-events: none;
+    }
+
+    .fusion-card {
+      width: 100%; max-width: 420px;
+      background: var(--glass-surface);
+      backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+      border: 1px solid var(--glass-border);
+      border-radius: 32px;
+      padding: 24px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+      pointer-events: auto;
+      transition: all 0.5s var(--ease-smooth);
+      position: relative;
+    }
+
+    .fusion-card.minimized {
+      width: 240px; padding: 12px 16px; border-radius: 20px;
+      transform: translateY(calc(50vh - 100px)); cursor: pointer;
+    }
+
+    .brand-glow {
+      font-size: 1.8rem; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-size: 200% auto; animation: shine 3s linear infinite;
+    }
+    @keyframes shine { to { background-position: 200% center; } }
+
+    /* Modules Scroll Area */
+    .modules-area {
+      max-height: 0; overflow: hidden; opacity: 0;
+      transition: all 0.5s var(--ease-smooth);
+    }
+    .fusion-card.expanded .modules-area {
+      max-height: 400px; opacity: 1; margin-top: 20px; overflow-y: auto;
+    }
+
+    /* Cyber Controls */
+    .cyber-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 16px; border-radius: 12px;
+      font-family: var(--font-code); font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 1px;
+      transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .cyber-btn:hover { background: rgba(255,255,255,0.08); border-color: var(--neon-cyan); }
+    
+    .cyber-input {
+      width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 12px 16px; color: #fff; font-family: var(--font-code);
+      transition: 0.3s;
+    }
+    .cyber-input:focus { border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+
+    /* ASCII Activation */
+    .ascii-box {
+      background: rgba(0,0,0,0.4); border-radius: 12px; padding: 12px;
+      font-family: var(--font-code); font-size: 0.7rem; line-height: 1.2;
+      border: 1px dashed rgba(255,255,255,0.1); white-space: pre; overflow-x: auto;
+    }
+
+    /* Floating UI Icons */
+    .tool-sidebar { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); z-index: 40; display: flex; flex-direction: column; gap: 12px; }
+    .tool-icon {
+      width: 40px; height: 40px; border-radius: 12px; background: rgba(10,10,15,0.6);
+      border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(10px); color: rgba(255,255,255,0.5); transition: 0.3s;
+    }
+    .tool-icon:hover { color: var(--neon-cyan); border-color: var(--neon-cyan); transform: translateX(4px); }
+
+    /* Navigation Dots */
+    .nav-dots { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 40; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.1); cursor: pointer; transition: 0.3s; }
+    .dot.active { background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan); }
+
+    /* Runtime Overlay */
+    #runtime {
+      position: fixed; inset: 0; z-index: 100; background: #000;
+      display: none; flex-direction: column;
+    }
+    #runtime.active { display: flex; }
+
+    @media (max-width: 480px) {
+      .fusion-card { max-width: 90vw; padding: 20px; }
+      .brand-glow { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body class="selection:bg-cyan-500 selection:text-black">
+
+  <!-- ========== HEADER VIVO (INTEGRATED) ========== -->
+  <header id="appHeader" class="app-header" role="banner" aria-label="Dual App Header" data-active="false" data-theme="dark">
+    <div class="header-left">
+      <div id="headerAvatar" class="header-avatar" aria-hidden="true"></div>
+      <div class="header-identity">
+        <div id="headerUserName" class="header-username">Convidado</div>
+        <div id="headerUserRole" class="header-role">Dual · Navegador</div>
+      </div>
+    </div>
+
+    <div class="header-center" aria-hidden="true">
+      <div id="headerStatus" class="header-status">STANDBY</div>
+    </div>
+
+    <div class="header-right">
+      <button id="headerThemeBtn" class="header-btn" title="Alternar tema" aria-label="Tema">🌗</button>
+
+      <label class="header-toggle" title="Abrir automaticamente">
+        <input id="headerAutoOpen" type="checkbox" />
+        <span>Auto</span>
+      </label>
+
+      <button id="headerOrbBtn" class="header-btn" title="Abrir/Fechar Runtime" aria-label="Orb">⚪</button>
+      <button id="headerSettingsBtn" class="header-btn" title="Configurações" aria-label="Config">⚙️</button>
+    </div>
+  </header>
+
+  <div class="ambient-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <!-- Main Background Viewport -->
+  <iframe id="mainViewport" src="about:blank" class="fixed inset-0 w-full h-full border-0 z-0 bg-black"></iframe>
+
+  <!-- Tool Sidebar -->
+  <div class="tool-sidebar">
+    <button class="tool-icon" onclick="openUrlPrompt()" title="Abrir URL"><i data-lucide="globe"></i></button>
+    <button class="tool-icon" onclick="triggerAction('upload')" title="Upload"><i data-lucide="upload"></i></button>
+    <button class="tool-icon" onclick="triggerAction('terminal')" title="Terminal"><i data-lucide="terminal"></i></button>
+    <button class="tool-icon" onclick="triggerAction('ritual')" title="Ritual"><i data-lucide="sparkles"></i></button>
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav-dots">
+    <div class="dot active" onclick="navigate('index')"></div>
+    <div class="dot" onclick="navigate('base')"></div>
+    <div class="dot" onclick="navigate('last')"></div>
+  </div>
+
+  <!-- Fusion OS Card -->
+  <div class="fusion-container">
+    <div id="fusionCard" class="fusion-card">
+      <div class="flex items-start justify-between mb-4">
+        <div onclick="toggleFusionSize()" class="cursor-pointer">
+          <div class="flex items-center gap-2 text-[10px] text-white/40 font-code tracking-[3px] uppercase">
+            Fusion // v2.5
+          </div>
+          <h1 class="brand-glow">DUAL</h1>
+        </div>
+        <div class="text-right">
+          <div id="clock" class="font-code text-sm font-bold text-white/80">00:00</div>
+          <div class="text-[9px] text-cyan-400 tracking-widest">ONLINE</div>
+        </div>
+      </div>
+
+      <div id="cardContent">
+        <div class="mb-4">
+          <input type="text" id="userInput" class="cyber-input" placeholder="Identifique-se..." autocomplete="off">
+        </div>
+
+        <div class="flex gap-2">
+          <button class="cyber-btn flex-1" onclick="toggleModules()">
+            <span id="moduleBtnText">Módulos</span>
+            <i data-lucide="chevron-down" id="moduleIcon"></i>
+          </button>
+          <button class="cyber-btn" onclick="copyActivation()" title="Copiar Ativação">
+            <i data-lucide="copy"></i>
+          </button>
+        </div>
+
+        <div id="modulesArea" class="modules-area space-y-4">
+          <div class="ascii-box" id="asciiDisplay">
+            Aguardando sinal...
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button class="cyber-btn" onclick="triggerAction('infodose')">
+              <i data-lucide="zap" class="w-4 h-4 text-yellow-400"></i> Infodose
+            </button>
+            <button class="cyber-btn" onclick="triggerAction('storage')">
+              <i data-lucide="database" class="w-4 h-4 text-purple-400"></i> Cloud
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-white/5 border border-white/5">
+            <div class="text-[10px] text-white/30 mb-2 font-code">CARREGAR MÓDULO (.HTML)</div>
+            <input type="file" id="fileInput" class="hidden" accept=".html" onchange="handleModuleLoad(event)">
+            <button class="w-full py-8 border-2 border-dashed border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all" onclick="document.getElementById('fileInput').click()">
+              <i data-lucide="plus" class="mx-auto mb-2 text-white/20"></i>
+              <span class="text-xs text-white/40">Drop or Click</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Runtime Sandbox -->
+  <div id="runtime">
+    <div class="h-12 bg-zinc-900 border-b border-white/10 flex items-center justify-between px-4">
+      <span class="font-code text-xs text-cyan-400 uppercase tracking-widest">Sandbox // Runtime</span>
+      <button onclick="closeRuntime()" class="text-white/50 hover:text-white"><i data-lucide="x"></i></button>
+    </div>
+    <div class="flex-1">
+      <iframe id="runtimeFrame" class="w-full h-full bg-white"></iframe>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-2 bg-black/90 border border-cyan-500/30 rounded-full text-cyan-400 font-code text-xs opacity-0 transition-all pointer-events-none">
+    SYSTEM READY
+  </div>
+
+  <script>
+    // System State
+    const state = {
+      user: localStorage.getItem('fusion_user') || 'Convidado',
+      expanded: false,
+      minimized: false,
+      lastPage: localStorage.getItem('fusion_last_page') || 'about:blank'
+    };
+
+    // Initialize Lucide
+    lucide.createIcons();
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // UI Logic
+    function toggleModules() {
+      state.expanded = !state.expanded;
+      const card = document.getElementById('fusionCard');
+      const text = document.getElementById('moduleBtnText');
+      const icon = document.getElementById('moduleIcon');
+
+      if (state.expanded) {
+        card.classList.add('expanded');
+        text.innerText = 'Fechar';
+        icon.style.transform = 'rotate(180deg)';
+        updateAscii();
+      } else {
+        card.classList.remove('expanded');
+        text.innerText = 'Módulos';
+        icon.style.transform = 'rotate(0deg)';
+      }
+      // Update header to reflect change
+      updateHeaderFromState();
+    }
+
+    function toggleFusionSize() {
+      const card = document.getElementById('fusionCard');
+      state.minimized = !state.minimized;
+      
+      if (state.minimized) {
+        card.classList.add('minimized');
+        document.getElementById('cardContent').style.display = 'none';
+      } else {
+        card.classList.remove('minimized');
+        document.getElementById('cardContent').style.display = 'block';
+      }
+      updateHeaderFromState();
+    }
+
+    function updateAscii() {
+      const root = calculateRoot(state.user);
+      const ascii = `
++----------------------------+
+| DUAL FUSION ACTIVATION     |
++----------------------------+
+User: ${state.user.padEnd(20)}
+Selo: [ ${root} ]
+Status: SYNCHRONIZED
+Date: ${new Date().toLocaleDateString()}
++----------------------------+`;
+      document.getElementById('asciiDisplay').innerText = ascii.trim();
+    }
+
+    function calculateRoot(name) {
+      if (!name) return '--';
+      let sum = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      while (sum > 9) sum = String(sum).split('').reduce((a, b) => a + Number(b), 0);
+      return sum;
+    }
+
+    // Handlers
+    document.getElementById('userInput').value = state.user === 'Convidado' ? '' : state.user;
+    document.getElementById('userInput').oninput = (e) => {
+      state.user = e.target.value || 'Convidado';
+      localStorage.setItem('fusion_user', state.user);
+      if (state.expanded) updateAscii();
+      updateHeaderFromState();
+    };
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.remove('opacity-0', '-translate-y-2');
+      setTimeout(() => t.classList.add('opacity-0', '-translate-y-2'), 2000);
+    }
+
+    function navigate(dest) {
+      const frame = document.getElementById('mainViewport');
+      document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+      
+      if (dest === 'index') {
+        frame.src = 'about:blank';
+        document.querySelector('.dot:nth-child(1)').classList.add('active');
+        showToast("RETORNO AO INDEX");
+      } else if (dest === 'last') {
+        frame.src = state.lastPage;
+        document.querySelector('.dot:nth-child(3)').classList.add('active');
+        showToast("RECARREGANDO ÚLTIMO");
+      }
+    }
+
+    function openUrlPrompt() {
+      const url = prompt("Digite a URL do sistema:");
+      if (url) {
+        document.getElementById('mainViewport').src = url;
+        state.lastPage = url;
+        localStorage.setItem('fusion_last_page', url);
+        showToast("NAVIGATING...");
+      }
+    }
+
+    function handleModuleLoad(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const runtime = document.getElementById('runtime');
+        const frame = document.getElementById('runtimeFrame');
+        frame.srcdoc = event.target.result;
+        runtime.classList.add('active');
+        showToast("MÓDULO INJETADO");
+        updateHeaderFromState();
+      };
+      reader.readAsText(file);
+    }
+
+    function closeRuntime() {
+      document.getElementById('runtime').classList.remove('active');
+      document.getElementById('runtimeFrame').srcdoc = '';
+      showToast("RUNTIME CLOSED");
+      updateHeaderFromState();
+    }
+
+    function copyActivation() {
+      const text = document.getElementById('asciiDisplay').innerText;
+      navigator.clipboard.writeText(text);
+      showToast("ASCII COPIADO");
+    }
+
+    function triggerAction(type) {
+      showToast(`AÇÃO: ${type.toUpperCase()}`);
+      if (type === 'ritual') {
+        document.body.classList.add('brightness-150');
+        setTimeout(() => document.body.classList.remove('brightness-150'), 500);
+      }
+    }
+
+    // Initial State
+    window.onload = () => {
+      showToast("FUSION OS READY");
+      updateAscii();
+      // auto-open modules if user previously set that pref
+      const auto = localStorage.getItem('fusion_auto_open') === 'true';
+      if (auto) {
+        // open modules
+        if (!state.expanded) toggleModules();
+        document.getElementById('headerAutoOpen').checked = true;
+      }
+      // initial header sync
+      setTimeout(updateHeaderFromState, 80);
+    }
+
+    /* =========================
+       HEADER LIVE INTEGRATION
+       ========================= */
+    // keep separate so it doesn't override other onload handlers
+    function reduce369(name) {
+      if (!name || !name.trim()) return '--';
+      const s = name.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+      let root = s;
+      while (root > 9) root = String(root).split('').reduce((a, b) => a + Number(b), 0);
+      return root;
+    }
+
+    function createMiniAvatarInto(el, name) {
+      const seed = (function hashString(str){ let h = 0x811c9dc5; for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193);} return h >>> 0;})(name||'DUAL');
+      const h1 = seed % 360;
+      const svg = `<svg width="48" height="48" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="32" height="32" rx="8" fill="#071018"/><circle cx="16" cy="12" r="6" fill="hsl(${h1},90%,60%)"/></svg>`;
+      el.innerHTML = svg;
+    }
+
+    function updateHeaderFromState() {
+      const header = document.getElementById('appHeader');
+      if(!header) return;
+      const elName = document.getElementById('headerUserName');
+      const elRole = document.getElementById('headerUserRole');
+      const elStatus = document.getElementById('headerStatus');
+      const elAvatar = document.getElementById('headerAvatar');
+      const chkAuto = document.getElementById('headerAutoOpen');
+
+      const saved = localStorage.getItem('fusion_user') || state.user || 'Convidado';
+      elName.innerText = saved;
+      const v = reduce369(saved);
+      elRole.innerText = `${saved} · v:${v}`;
+      createMiniAvatarInto(elAvatar, saved);
+
+      // active if runtime visible or modules expanded
+      const runtimeActive = document.getElementById('runtime').classList.contains('active');
+      const active = runtimeActive || state.expanded;
+      header.setAttribute('data-active', String(!!active));
+      elStatus.innerText = runtimeActive ? 'RUNTIME' : (state.expanded ? 'MODULES' : 'STANDBY');
+
+      // theme attr
+      const currentTheme = localStorage.getItem('fusion_theme') || 'dark';
+      header.setAttribute('data-theme', currentTheme);
+
+      // auto-open checkbox reflects pref
+      chkAuto.checked = localStorage.getItem('fusion_auto_open') === 'true';
+    }
+
+    // header button wiring (non-blocking)
+    window.addEventListener('load', () => {
+      const btnTheme = document.getElementById('headerThemeBtn');
+      const btnOrb = document.getElementById('headerOrbBtn');
+      const btnSettings = document.getElementById('headerSettingsBtn');
+      const chkAuto = document.getElementById('headerAutoOpen');
+
+      if(btnTheme) {
+        btnTheme.addEventListener('click', () => {
+          // simple theme cycling: dark -> vibe -> light
+          const themes = ['dark','vibe','light'];
+          const cur = localStorage.getItem('fusion_theme') || 'dark';
+          const next = themes[(themes.indexOf(cur) + 1) % themes.length];
+          localStorage.setItem('fusion_theme', next);
+          // apply minimal visual change via body class
+          document.body.classList.remove('theme-dark','theme-vibe','theme-light');
+          if(next !== 'dark') document.body.classList.add('theme-' + next);
+          showToast(`TEMA: ${next.toUpperCase()}`);
+          updateHeaderFromState();
+        });
+      }
+
+      if(btnOrb) {
+        btnOrb.addEventListener('click', () => {
+          // toggle runtime as quick "orb" action
+          const runtime = document.getElementById('runtime');
+          if(runtime.classList.contains('active')) {
+            closeRuntime();
+          } else {
+            // open an empty runtime (or restore last)
+            const frame = document.getElementById('runtimeFrame');
+            frame.srcdoc = '<!doctype html><meta charset="utf-8"><body style="background:#071017;color:#fff;font-family:monospace;padding:20px"><h3>RUNTIME</h3><p>Sandbox ativo.</p></body>';
+            runtime.classList.add('active');
+            showToast("RUNTIME OPENED");
+            updateHeaderFromState();
+          }
+        });
+      }
+
+      if(btnSettings) {
+        btnSettings.addEventListener('click', () => {
+          // open modules panel inside fusion card (same as toggling modules)
+          if(!state.expanded) toggleModules();
+          // scroll fusion into view a bit
+          document.getElementById('fusionCard').scrollIntoView({behavior:'smooth', block:'center'});
+        });
+      }
+
+      if(chkAuto) {
+        chkAuto.addEventListener('change', (e) => {
+          localStorage.setItem('fusion_auto_open', String(e.target.checked));
+          showToast(`Auto-open: ${e.target.checked ? 'ON' : 'OFF'}`);
+        });
+      }
+
+      // wire click on header avatar to focus user input
+      const avatar = document.getElementById('headerAvatar');
+      avatar && avatar.addEventListener('click', () => {
+        document.getElementById('userInput').focus();
+      });
+
+      // observe runtime visibility and state.expanded to keep header synced
+      const observer = new MutationObserver(() => updateHeaderFromState());
+      observer.observe(document.getElementById('runtime'), { attributes: true, attributeFilter: ['class'] });
+
+      // keep header updated periodically (keeps time/status in sync)
+      setInterval(updateHeaderFromState, 800);
+    });
+
+    // expose updateHeaderFromState to other functions
+    window.updateHeaderFromState = updateHeaderFromState;
+
+  </script>
+</body>
+</html>

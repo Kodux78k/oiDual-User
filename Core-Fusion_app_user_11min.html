@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>DUAL // FUSION OS — Monólito</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#030406">
+
+  <!-- Fonts & Libs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-deep: #030406;
+      --glass-surface: rgba(18, 18, 22, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --neon-cyan: #00f2ff;
+      --neon-purple: #bd00ff;
+      --neon-orange: #ff9a3c;
+      --font-ui: 'Montserrat', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+      --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      margin: 0; background-color: var(--bg-deep); color: #fff;
+      font-family: var(--font-ui); overflow-x: hidden;
+      background-image: linear-gradient(rgba(255,255,255,0.01) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.01) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Ambient Effects */
+    .ambient-light { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.12; animation: float 20s infinite alternate ease-in-out; }
+    .blob-1 { width: 80vw; height: 80vw; background: var(--neon-cyan); top: -30%; left: -20%; }
+    .blob-2 { width: 70vw; height: 70vw; background: var(--neon-purple); bottom: -30%; right: -20%; animation-delay: -5s; }
+    @keyframes float { 0% { transform: translate(0,0); } 100% { transform: translate(60px,100px); } }
+
+    /* Header Estilizado */
+    .app-header {
+      position: fixed; top: 0; left: 0; width: 100%; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; backdrop-filter: blur(15px); z-index: 100;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(3, 4, 6, 0.7); transition: all 0.3s var(--ease-smooth);
+    }
+    .app-header.shrink { height: 50px; background: rgba(3, 4, 6, 0.9); }
+
+    .header-left { display:flex; align-items:center; gap:12px; min-width:0; }
+    .header-avatar { width:40px; height:40px; border-radius:10px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#071018; border:1px solid rgba(255,255,255,0.06); cursor:pointer; }
+    .header-identity { display:flex; flex-direction:column; min-width:0; }
+    .header-username { font-weight:700; font-size:13px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width:180px; }
+    .header-role { font-size:11px; opacity:0.6; margin-top:2px; }
+
+    .app-header[data-active="true"] .header-avatar { box-shadow: 0 6px 20px rgba(0,242,255,0.06); border-color: rgba(0,242,255,0.12); }
+    .app-header[data-active="false"] .header-avatar { border-color: rgba(255,255,255,0.06); box-shadow: none; }
+
+    /* Fusion Card Principal */
+    .fusion-container {
+      position: relative; z-index: 50; display: flex; flex-direction: column;
+      align-items: center; padding-top: 100px; padding-bottom: 120px;
+      min-height: 100vh; pointer-events: none;
+    }
+    .fusion-card {
+      pointer-events: auto; width: 100%; max-width: 440px;
+      background: var(--glass-surface); backdrop-filter: blur(40px);
+      border: 1px solid var(--glass-border); border-radius: 32px;
+      padding: 24px; box-shadow: 0 50px 100px rgba(0,0,0,0.6);
+      transition: all 0.5s var(--ease-smooth); opacity: 0; transform: translateY(30px);
+    }
+    .fusion-card.active { opacity: 1; transform: translateY(0); }
+    .fusion-card.closed { width: 280px; padding: 12px 16px; border-radius: 20px; cursor: pointer; }
+    .fusion-card.closed .card-body { display: none; }
+
+    /* Monolith System */
+    .monolith-overlay {
+      position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; transition: opacity 0.4s;
+    }
+    .monolith-overlay.open { display: flex; opacity: 1; }
+    .monolith-card {
+      width: 100%; max-width: 800px; height: 80vh; background: #0a0a0c;
+      border: 1px solid var(--glass-border); border-radius: 24px;
+      overflow: hidden; display: flex; flex-direction: column;
+      transform: scale(0.9) translateY(40px); transition: all 0.4s var(--ease-smooth);
+    }
+    .monolith-overlay.open .monolith-card { transform: scale(1) translateY(0); }
+
+    /* UI Elements */
+    .btn-cyber {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 20px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+    }
+    .btn-cyber:hover { background: rgba(255,255,255,0.08); border-color: var(--neon-cyan); color: var(--neon-cyan); }
+
+    .brand-text {
+      font-weight: 900; font-size: 1.8rem; letter-spacing: -2px;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* Scanline effect for Monolith */
+    .scanline {
+      width: 100%; height: 100px; z-index: 200; pointer-events: none;
+      background: linear-gradient(0deg, transparent, rgba(0,242,255,0.05), transparent);
+      position: absolute; top: -100px; animation: scan 4s linear infinite;
+    }
+    @keyframes scan { 0% { top: -100px; } 100% { top: 100%; } }
+
+    /* Mobiles */
+    @media (max-width: 640px) {
+      .fusion-card { max-width: 90vw; }
+      .app-header { padding: 0 12px; }
+      .brand-text { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body class="selection:bg-cyan-500 selection:text-black">
+
+  <div class="ambient-light">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <!-- Header -->
+  <header id="mainHeader" class="app-header" data-active="false" aria-label="Dual Fusion Header">
+    <div class="header-left">
+      <div id="userAvatar" class="header-avatar" aria-hidden="true" title="Clique para editar usuário">U</div>
+      <div class="header-identity">
+        <div id="userName" class="header-username">Convidado</div>
+        <div id="userRole" class="header-role">Dual OS // v2.5</div>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      <button onclick="toggleMonolith()" id="btnToggleMon" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:border-cyan-400/50 transition-all" aria-pressed="false" title="Abrir Monólito">
+        <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+      </button>
+      <button onclick="resetSystem()" id="btnReset" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10" title="Reset">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Fusion Card View -->
+  <main class="fusion-container">
+    <div id="fusionCard" class="fusion-card">
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <h2 class="brand-text">DUAL</h2>
+          <p class="text-[10px] text-cyan-400/70 font-code tracking-[4px]">FUSION MÓDULO</p>
+        </div>
+        <div class="text-right font-code text-[11px] opacity-40">
+          <div id="liveClock">00:00:00</div>
+          <div id="systemLatency">LATENCY: 12ms</div>
+        </div>
+      </div>
+
+      <div class="card-body flex flex-col gap-4">
+        <div class="relative">
+          <input type="text" id="userInput" placeholder="Identifique-se no sistema..." class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:border-cyan-400 transition-all outline-none font-code">
+          <i data-lucide="fingerprint" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"></i>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+            <span class="text-[9px] uppercase opacity-40 block mb-1">Status Base</span>
+            <span class="text-cyan-400 font-bold text-xs uppercase">Sincronizado</span>
+          </div>
+          <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+            <span class="text-[9px] uppercase opacity-40 block mb-1">Versão</span>
+            <span class="text-purple-400 font-bold text-xs">STABLE-X</span>
+          </div>
+        </div>
+
+        <button onclick="openMódulo()" class="btn-cyber w-full py-4 bg-cyan-400/10 border-cyan-400/20 text-cyan-400 flex items-center justify-center gap-2">
+          <span>Abrir Painel de Controle</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        
+        <div id="activationArea" class="mt-4 p-4 rounded-2xl bg-black/20 border border-dashed border-white/10 text-center">
+          <p class="text-[10px] opacity-40 mb-2">ATIVAÇÃO REQUERIDA</p>
+          <div id="asciiCode" class="font-code text-[8px] leading-tight text-white/60 whitespace-pre">...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Monolith System Overlay -->
+  <div id="monolithOverlay" class="monolith-overlay" onclick="closeMonolith(event)">
+    <div class="monolith-card" onclick="event.stopPropagation()">
+      <div class="scanline"></div>
+      
+      <!-- Monolith Header -->
+      <div class="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+          <h3 class="font-bold text-sm tracking-widest uppercase">Monólito // Core</h3>
+        </div>
+        <button onclick="toggleMonolith()" class="text-white/40 hover:text-white transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Monolith Content -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <section>
+          <label class="text-[10px] uppercase opacity-40 font-bold mb-3 block">Upload de Stacks</label>
+          <div id="dropZone" class="h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-cyan-400/50 hover:bg-cyan-400/5 transition-all cursor-pointer">
+            <i data-lucide="cloud-upload" class="w-8 h-8 opacity-20"></i>
+            <span class="text-xs opacity-50">Arraste arquivos HTML ou JSON aqui</span>
+            <input type="file" id="fileInput" class="hidden" accept=".html,.json">
+          </div>
+        </section>
+
+        <section id="stackListArea">
+          <label class="text-[10px] uppercase opacity-40 font-bold mb-3 block">Stacks Carregadas</label>
+          <div id="stackList" class="space-y-2">
+            <!-- Stacks injected here -->
+            <div class="p-4 rounded-xl bg-white/5 border border-white/5 text-center text-xs opacity-40 italic">Nenhuma stack detectada.</div>
+          </div>
+        </section>
+
+        <section>
+          <label class="text-[10px] uppercase opacity-40 font-bold mb-3 block">Configuração de Interface (CSS)</label>
+          <textarea id="cssEditor" placeholder="/* Injete seu CSS aqui */" class="w-full h-32 bg-black/60 border border-white/10 rounded-xl p-4 font-code text-xs text-cyan-300 outline-none focus:border-cyan-500"></textarea>
+          <button onclick="applyStyles()" class="mt-2 text-[10px] font-bold text-cyan-400 hover:underline">APLICAR ESTILOS</button>
+        </section>
+      </div>
+
+      <!-- Footer Stats -->
+      <div class="p-4 bg-black/40 border-t border-white/5 flex justify-between text-[10px] font-code text-white/40">
+        <span>SYSTEM_LOAD: 2.4%</span>
+        <span>UPTIME: 12:45:01</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast System -->
+  <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-cyan-500 text-black font-bold text-xs shadow-2xl opacity-0 translate-y-4 pointer-events-none transition-all duration-500 z-[200]">
+    SISTEMA ATUALIZADO
+  </div>
+
+  <script>
+    // Config & State
+    const state = {
+      stacks: JSON.parse(localStorage.getItem('dual_stacks') || '[]'),
+      user: localStorage.getItem('dual_user') || 'Convidado'
+    };
+
+    // Utility: stable string hash for avatar colors
+    function hashStringToHue(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h % 360;
+    }
+
+    // create a tiny svg avatar and inject into element
+    function createMiniAvatarInto(el, name) {
+      const seed = hashStringToHue((name || 'DUAL'));
+      const h1 = seed;
+      const h2 = (seed * 47) % 360;
+      const svg = `
+        <svg width="40" height="40" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+          <rect width="32" height="32" rx="6" fill="#071018"></rect>
+          <circle cx="16" cy="11" r="6" fill="hsl(${h1},90%,60%)"/>
+          <path d="M8 24c4-4 12-4 16 0" stroke="hsl(${h2},85%,65%)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+      `;
+      el.innerHTML = svg;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateClock();
+      renderStacks();
+      loadUser();
+      const card = document.getElementById('fusionCard');
+      setTimeout(() => card.classList.add('active'), 300);
+
+      // Listeners
+      const userInput = document.getElementById('userInput');
+      userInput.addEventListener('input', e => {
+        state.user = e.target.value || 'Convidado';
+        document.getElementById('userName').innerText = state.user;
+        localStorage.setItem('dual_user', state.user);
+        updateAscii();
+        updateHeaderFromState();
+      });
+
+      document.getElementById('dropZone').onclick = () => document.getElementById('fileInput').click();
+      document.getElementById('fileInput').onchange = e => handleFiles(e.target.files);
+      
+      // header avatar click focuses input
+      const avatar = document.getElementById('userAvatar');
+      avatar.addEventListener('click', () => {
+        document.getElementById('userInput').focus();
+      });
+
+      // Keep header responsive to monolith changes
+      const mon = document.getElementById('monolithOverlay');
+      const observer = new MutationObserver(() => updateHeaderFromState());
+      observer.observe(mon, { attributes: true, attributeFilter: ['class'] });
+
+      // initial header sync
+      updateHeaderFromState();
+      setTimeout(() => updateHeaderFromState(), 80);
+    });
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('liveClock').innerText = now.toLocaleTimeString();
+      setTimeout(updateClock, 1000);
+    }
+
+    // User & UI
+    function loadUser() {
+      const input = document.getElementById('userInput');
+      input.value = state.user !== 'Convidado' ? state.user : '';
+      document.getElementById('userName').innerText = state.user;
+      updateAscii();
+      updateHeaderFromState();
+    }
+
+    function updateAscii() {
+      // deterministic-ish ascii: keep consistent for same name within session
+      const base = (state.user || 'Convidado').toUpperCase().slice(0,3).padEnd(3,'X');
+      const num = (state.user.length * 37) % 999;
+      const code = `DUAL-${base}-${String(num).padStart(3,'0')}`;
+      document.getElementById('asciiCode').innerText = `[${code}]\nSYSTEM_AUTH_READY\nHASH_LINK_ESTABLISHED`;
+    }
+
+    // Monolith Logic
+    function toggleMonolith() {
+      const overlay = document.getElementById('monolithOverlay');
+      overlay.classList.toggle('open');
+      // update header state and button aria-pressed
+      document.getElementById('btnToggleMon').setAttribute('aria-pressed', overlay.classList.contains('open'));
+      updateHeaderFromState();
+    }
+
+    function closeMonolith(e) {
+      if (e.target.id === 'monolithOverlay') {
+        const overlay = document.getElementById('monolithOverlay');
+        overlay.classList.remove('open');
+        document.getElementById('btnToggleMon').setAttribute('aria-pressed', 'false');
+        updateHeaderFromState();
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-4');
+      toast.style.pointerEvents = 'auto';
+      setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-4'); toast.style.pointerEvents = 'none'; }, 3000);
+    }
+
+    // File Management
+    function handleFiles(files) {
+      const file = files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const newStack = {
+          id: Date.now(),
+          name: file.name,
+          content: e.target.result,
+          type: file.name.split('.').pop()
+        };
+        state.stacks.push(newStack);
+        localStorage.setItem('dual_stacks', JSON.stringify(state.stacks));
+        renderStacks();
+        showToast("STACK ADICIONADA");
+        updateHeaderFromState();
+      };
+      reader.readAsText(file);
+    }
+
+    function renderStacks() {
+      const container = document.getElementById('stackList');
+      if (state.stacks.length === 0) {
+        container.innerHTML = `<div class="p-4 rounded-xl bg-white/5 border border-white/5 text-center text-xs opacity-40 italic">Nenhuma stack detectada.</div>`;
+        return;
+      }
+
+      container.innerHTML = state.stacks.map(s => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-cyan-400/30 transition-all">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-cyan-400/10 rounded-lg flex items-center justify-center">
+              <i data-lucide="file-code" class="w-4 h-4 text-cyan-400"></i>
+            </div>
+            <span class="text-xs font-bold">${s.name}</span>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="runStack(${s.id})" class="text-[10px] text-cyan-400 font-bold hover:underline">EXECUTAR</button>
+            <button onclick="removeStack(${s.id})" class="text-[10px] text-red-400 font-bold hover:underline">REMOVER</button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function removeStack(id) {
+      state.stacks = state.stacks.filter(s => s.id !== id);
+      localStorage.setItem('dual_stacks', JSON.stringify(state.stacks));
+      renderStacks();
+      updateHeaderFromState();
+    }
+
+    function runStack(id) {
+      const stack = state.stacks.find(s => s.id === id);
+      if (!stack) return;
+      
+      const newWindow = window.open();
+      newWindow.document.write(stack.content);
+      newWindow.document.close();
+      showToast("EXECUTANDO STACK");
+    }
+
+    function applyStyles() {
+      const css = document.getElementById('cssEditor').value;
+      let styleTag = document.getElementById('custom-injected-styles');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'custom-injected-styles';
+        document.head.appendChild(styleTag);
+      }
+      styleTag.textContent = css;
+      showToast("ESTILOS APLICADOS");
+    }
+
+    function resetSystem() {
+      if (confirm("Resetar preferências do sistema?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+    
+    function openMódulo() {
+      toggleMonolith();
+      showToast("CORE ACESSADO");
+    }
+
+    /* ========== HEADER VIVO: sincroniza avatar, nome e estado ========== */
+    function updateHeaderFromState() {
+      const header = document.getElementById('mainHeader');
+      const avatarEl = document.getElementById('userAvatar');
+      const nameEl = document.getElementById('userName');
+
+      const currentUser = localStorage.getItem('dual_user') || state.user || 'Convidado';
+      nameEl.innerText = currentUser;
+
+      // avatar svg
+      createMiniAvatarInto(avatarEl, currentUser);
+
+      // mark active when monolith open or stacks exist
+      const isMonOpen = document.getElementById('monolithOverlay').classList.contains('open');
+      const hasStacks = state.stacks && state.stacks.length > 0;
+      header.setAttribute('data-active', (isMonOpen || hasStacks) ? 'true' : 'false');
+
+      // small visual feedback: change header role to show stacks count / mon status
+      const role = document.getElementById('userRole');
+      if (isMonOpen) {
+        role.innerText = 'Monólito • CORE';
+      } else if (hasStacks) {
+        role.innerText = `Stacks: ${state.stacks.length}`;
+      } else {
+        role.innerText = 'Dual OS // v2.5';
+      }
+    }
+
+    // make sure header stays synced periodically (keeps look live)
+    setInterval(updateHeaderFromState, 1000);
+    // expose for debugging or external calls
+    window.updateHeaderFromState = updateHeaderFromState;
+  </script>
+</body>
+</html>
